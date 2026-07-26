@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "104900682440",
+    "project_id": "financial-fdfb8",
+    "storage_bucket": "financial-fdfb8.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:104900682440:android:871ea246efafe70ec93bfd",
+        "android_client_info": {
+          "package_name": "com.example.stocksapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDAbg8lz1xYvU2Xw_RmD1JidYcc2H6IgcM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
