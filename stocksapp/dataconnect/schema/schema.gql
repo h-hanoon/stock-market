@@ -1,0 +1,33 @@
+type User @table {
+  username: String!
+  email: String!
+  virtualBalance: Float!
+  createdAt: Timestamp
+}
+
+type Portfolio @table {
+  user: User!
+}
+
+type Holding @table {
+  portfolio: Portfolio!
+  symbol: String!
+  quantity: Float!
+  averagePurchasePrice: Float!
+}
+
+type Transaction @table {
+  user: User!
+  symbol: String!
+  type: String!
+  quantity: Float!
+  priceAtExecution: Float!
+  timestamp: Timestamp!
+}
+
+type MarketCache @table {
+  symbol: String!
+  currentPrice: Float!
+  lastUpdated: Timestamp!
+  changePercentage: Float
+}
