@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../services/stock_service.dart';
+import 'stock_monitor_screen.dart';
 
 const _bullGreen = Color(0xFF2ECC71);
 const _bearRed = Color(0xFFE74C3C);
@@ -31,7 +32,10 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _loadStocks();
-    _refreshTimer = Timer.periodic(const Duration(seconds: 5), (_) => _refreshQuotes());
+    _refreshTimer = Timer.periodic(
+      const Duration(seconds: 5),
+      (_) => _refreshQuotes(),
+    );
   }
 
   @override
@@ -58,7 +62,9 @@ class _HomeScreenState extends State<HomeScreen> {
     final current = _stocks;
     if (current == null) return;
     try {
-      final refreshed = await _service.fetchQuotes(current.map((s) => s.symbol).toList());
+      final refreshed = await _service.fetchQuotes(
+        current.map((s) => s.symbol).toList(),
+      );
       if (!mounted) return;
       setState(() {
         for (final stock in current) {
@@ -116,12 +122,18 @@ class _HomeScreenState extends State<HomeScreen> {
             padding: const EdgeInsets.only(bottom: 4),
             child: Text(
               'Welcome, $email',
-              style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 14),
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.7),
+                fontSize: 14,
+              ),
             ),
           );
         }
         final stock = stocks[index - 1];
-        return _StockTile(stock: stock, previousPrice: _previousPrices[stock.symbol]);
+        return _StockTile(
+          stock: stock,
+          previousPrice: _previousPrices[stock.symbol],
+        );
       },
     );
   }
@@ -142,51 +154,69 @@ class _StockTile extends StatelessWidget {
     final isUp = change >= 0;
     final color = isUp ? _bullGreen : _bearRed;
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.04),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+    return InkWell(
+      borderRadius: BorderRadius.circular(14),
+      onTap: () => Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => StockMonitorScreen(stock: stock)),
       ),
-      child: Row(
-        children: [
-          Container(
-            width: 40,
-            height: 40,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.12),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              isUp ? Icons.trending_up_rounded : Icons.trending_down_rounded,
-              color: color,
-              size: 20,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              stock.symbol,
-              style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700),
-            ),
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                '\$${stock.price.toStringAsFixed(2)}',
-                style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.04),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.12),
+                shape: BoxShape.circle,
               ),
-              if (previousPrice != null)
-                Text(
-                  '${isUp ? '+' : ''}${changePct.toStringAsFixed(2)}%',
-                  style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.w600),
+              child: Icon(
+                isUp ? Icons.trending_up_rounded : Icons.trending_down_rounded,
+                color: color,
+                size: 20,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                stock.symbol,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
                 ),
-            ],
-          ),
-        ],
+              ),
+            ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  '\$${stock.price.toStringAsFixed(2)}',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                if (previousPrice != null)
+                  Text(
+                    '${isUp ? '+' : ''}${changePct.toStringAsFixed(2)}%',
+                    style: TextStyle(
+                      color: color,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -202,7 +232,9 @@ class _BalanceBar extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: _bgBottom,
-        border: Border(top: BorderSide(color: Colors.white.withValues(alpha: 0.08))),
+        border: Border(
+          top: BorderSide(color: Colors.white.withValues(alpha: 0.08)),
+        ),
       ),
       child: SafeArea(
         top: false,
@@ -210,16 +242,27 @@ class _BalanceBar extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
           child: Row(
             children: [
-              const Icon(Icons.account_balance_wallet_rounded, color: _bullGreen, size: 22),
+              const Icon(
+                Icons.account_balance_wallet_rounded,
+                color: _bullGreen,
+                size: 22,
+              ),
               const SizedBox(width: 10),
               Text(
                 'Available balance',
-                style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 13),
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.6),
+                  fontSize: 13,
+                ),
               ),
               const Spacer(),
               Text(
                 '\$${_formatBalance(balance)}',
-                style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w800),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                ),
               ),
             ],
           ),
@@ -263,7 +306,10 @@ class _ErrorState extends StatelessWidget {
             const SizedBox(height: 16),
             ElevatedButton(
               onPressed: onRetry,
-              style: ElevatedButton.styleFrom(backgroundColor: _bullGreen, foregroundColor: Colors.black),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _bullGreen,
+                foregroundColor: Colors.black,
+              ),
               child: const Text('Retry'),
             ),
           ],

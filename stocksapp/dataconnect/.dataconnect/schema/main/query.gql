@@ -1,0 +1,267 @@
+extend type Query {
+  """
+  ✨ Look up a single `Holding` based on `id`, `key` or `first` and return selected fields (or `null` if not found).
+  """
+  holding(
+    """
+    The unique ID of the object.
+    """
+    id: UUID
+
+    """
+    The key used to identify the object.
+    """
+    key: Holding_Key
+
+    """
+    Fetch the first row based on the filters and ordering.
+    """
+    first: Holding_FirstRow
+  ): Holding @fdc_generated(from: "Holding", purpose: QUERY_SINGLE)
+  """
+  ✨ Look up a single `MarketCache` based on `id`, `key` or `first` and return selected fields (or `null` if not found).
+  """
+  marketCache(
+    """
+    The unique ID of the object.
+    """
+    id: UUID
+
+    """
+    The key used to identify the object.
+    """
+    key: MarketCache_Key
+
+    """
+    Fetch the first row based on the filters and ordering.
+    """
+    first: MarketCache_FirstRow
+  ): MarketCache @fdc_generated(from: "MarketCache", purpose: QUERY_SINGLE)
+  """
+  ✨ Look up a single `Portfolio` based on `id`, `key` or `first` and return selected fields (or `null` if not found).
+  """
+  portfolio(
+    """
+    The unique ID of the object.
+    """
+    id: UUID
+
+    """
+    The key used to identify the object.
+    """
+    key: Portfolio_Key
+
+    """
+    Fetch the first row based on the filters and ordering.
+    """
+    first: Portfolio_FirstRow
+  ): Portfolio @fdc_generated(from: "Portfolio", purpose: QUERY_SINGLE)
+  """
+  ✨ Look up a single `Transaction` based on `id`, `key` or `first` and return selected fields (or `null` if not found).
+  """
+  transaction(
+    """
+    The unique ID of the object.
+    """
+    id: UUID
+
+    """
+    The key used to identify the object.
+    """
+    key: Transaction_Key
+
+    """
+    Fetch the first row based on the filters and ordering.
+    """
+    first: Transaction_FirstRow
+  ): Transaction @fdc_generated(from: "Transaction", purpose: QUERY_SINGLE)
+  """
+  ✨ Look up a single `User` based on `id`, `key` or `first` and return selected fields (or `null` if not found).
+  """
+  user(
+    """
+    The unique ID of the object.
+    """
+    id: UUID
+
+    """
+    The key used to identify the object.
+    """
+    key: User_Key
+
+    """
+    Fetch the first row based on the filters and ordering.
+    """
+    first: User_FirstRow
+  ): User @fdc_generated(from: "User", purpose: QUERY_SINGLE)
+  """
+  ✨ List `Holding` objects in the table and return selected fields, optionally filtered by `where` conditions
+  """
+  holdings(
+    """
+    Filter condition to narrow down the query results.
+    """
+    where: Holding_Filter
+
+    """
+    Order the query results by specific fields.
+    """
+    orderBy: [Holding_Order!]
+
+    """
+    Number of rows to skip before starting to return the results.
+    """
+    offset: Int
+
+    """
+    Maximum number of rows to return (defaults to 100 rows).
+    """
+    limit: Int = 100
+
+    """
+    Set to true to return distinct results.
+    """
+    distinct: Boolean = false
+
+    """
+    Filter condition to apply to the groups of aggregate queries.
+    """
+    having: Holding_Having
+  ): [Holding!]! @fdc_generated(from: "Holding", purpose: QUERY_MULTIPLE)
+  """
+  ✨ List `MarketCache` objects in the table and return selected fields, optionally filtered by `where` conditions
+  """
+  marketCaches(
+    """
+    Filter condition to narrow down the query results.
+    """
+    where: MarketCache_Filter
+
+    """
+    Order the query results by specific fields.
+    """
+    orderBy: [MarketCache_Order!]
+
+    """
+    Number of rows to skip before starting to return the results.
+    """
+    offset: Int
+
+    """
+    Maximum number of rows to return (defaults to 100 rows).
+    """
+    limit: Int = 100
+
+    """
+    Set to true to return distinct results.
+    """
+    distinct: Boolean = false
+
+    """
+    Filter condition to apply to the groups of aggregate queries.
+    """
+    having: MarketCache_Having
+  ): [MarketCache!]! @fdc_generated(from: "MarketCache", purpose: QUERY_MULTIPLE)
+  """
+  ✨ List `Portfolio` objects in the table and return selected fields, optionally filtered by `where` conditions
+  """
+  portfolios(
+    """
+    Filter condition to narrow down the query results.
+    """
+    where: Portfolio_Filter
+
+    """
+    Order the query results by specific fields.
+    """
+    orderBy: [Portfolio_Order!]
+
+    """
+    Number of rows to skip before starting to return the results.
+    """
+    offset: Int
+
+    """
+    Maximum number of rows to return (defaults to 100 rows).
+    """
+    limit: Int = 100
+
+    """
+    Set to true to return distinct results.
+    """
+    distinct: Boolean = false
+
+    """
+    Filter condition to apply to the groups of aggregate queries.
+    """
+    having: Portfolio_Having
+  ): [Portfolio!]! @fdc_generated(from: "Portfolio", purpose: QUERY_MULTIPLE)
+  """
+  ✨ List `Transaction` objects in the table and return selected fields, optionally filtered by `where` conditions
+  """
+  transactions(
+    """
+    Filter condition to narrow down the query results.
+    """
+    where: Transaction_Filter
+
+    """
+    Order the query results by specific fields.
+    """
+    orderBy: [Transaction_Order!]
+
+    """
+    Number of rows to skip before starting to return the results.
+    """
+    offset: Int
+
+    """
+    Maximum number of rows to return (defaults to 100 rows).
+    """
+    limit: Int = 100
+
+    """
+    Set to true to return distinct results.
+    """
+    distinct: Boolean = false
+
+    """
+    Filter condition to apply to the groups of aggregate queries.
+    """
+    having: Transaction_Having
+  ): [Transaction!]! @fdc_generated(from: "Transaction", purpose: QUERY_MULTIPLE)
+  """
+  ✨ List `User` objects in the table and return selected fields, optionally filtered by `where` conditions
+  """
+  users(
+    """
+    Filter condition to narrow down the query results.
+    """
+    where: User_Filter
+
+    """
+    Order the query results by specific fields.
+    """
+    orderBy: [User_Order!]
+
+    """
+    Number of rows to skip before starting to return the results.
+    """
+    offset: Int
+
+    """
+    Maximum number of rows to return (defaults to 100 rows).
+    """
+    limit: Int = 100
+
+    """
+    Set to true to return distinct results.
+    """
+    distinct: Boolean = false
+
+    """
+    Filter condition to apply to the groups of aggregate queries.
+    """
+    having: User_Having
+  ): [User!]! @fdc_generated(from: "User", purpose: QUERY_MULTIPLE)
+}
