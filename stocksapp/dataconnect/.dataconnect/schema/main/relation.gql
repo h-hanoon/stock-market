@@ -17,15 +17,6 @@ extend type Holding {
     distinct: Boolean = false
   ): Int! @fdc_generated(from: "Holding.averagePurchasePrice", purpose: QUERY_COUNT)
   """
-  ✨ Count the number of rows in the `Holding` table where the `id` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
-  """
-  id_count(
-    """
-    Set to true to count the number of distinct values.
-    """
-    distinct: Boolean = false
-  ): Int! @fdc_generated(from: "Holding.id", purpose: QUERY_COUNT)
-  """
   ✨ Count the number of rows in the `Holding` table where the `portfolioId` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
   """
   portfolioId_count(
@@ -107,7 +98,7 @@ extend type Holding {
   """
   A generated field that is used for caching results in SDKs.
   """
-  _id: ID! @fdc_generated(from: "Holding.id", purpose: ENTITY_ID)
+  _id: ID! @fdc_generated(from: "Holding.portfolioId,symbol", purpose: ENTITY_ID)
 }
 extend type MarketCache {
   """
@@ -281,14 +272,14 @@ extend type Portfolio {
     distinct: Boolean = false
   ): Int! @fdc_generated(from: "Portfolio.id", purpose: QUERY_COUNT)
   """
-  ✨ Count the number of rows in the `Portfolio` table where the `userId` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  ✨ Count the number of rows in the `Portfolio` table where the `userUid` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
   """
-  userId_count(
+  userUid_count(
     """
     Set to true to count the number of distinct values.
     """
     distinct: Boolean = false
-  ): Int! @fdc_generated(from: "Portfolio.userId", purpose: QUERY_COUNT)
+  ): Int! @fdc_generated(from: "Portfolio.userUid", purpose: QUERY_COUNT)
   """
   A generated field that is used for caching results in SDKs.
   """
@@ -358,14 +349,14 @@ extend type Transaction {
     distinct: Boolean = false
   ): Int! @fdc_generated(from: "Transaction.type", purpose: QUERY_COUNT)
   """
-  ✨ Count the number of rows in the `Transaction` table where the `userId` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  ✨ Count the number of rows in the `Transaction` table where the `userUid` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
   """
-  userId_count(
+  userUid_count(
     """
     Set to true to count the number of distinct values.
     """
     distinct: Boolean = false
-  ): Int! @fdc_generated(from: "Transaction.userId", purpose: QUERY_COUNT)
+  ): Int! @fdc_generated(from: "Transaction.userUid", purpose: QUERY_COUNT)
   """
   ✨ Sum the `priceAtExecution` field in the `Transaction` table.
   """
@@ -433,40 +424,6 @@ extend type Transaction {
 }
 extend type User {
   """
-  ✨ List `Portfolio` objects in a one-to-many relationship (where `Portfolio`.`user` is this object).
-  """
-  portfolios_on_user(
-    """
-    Filter condition to narrow down the query results.
-    """
-    where: Portfolio_Filter
-
-    """
-    Order the query results by specific fields.
-    """
-    orderBy: [Portfolio_Order!]
-
-    """
-    Number of rows to skip before starting to return the results.
-    """
-    offset: Int
-
-    """
-    Maximum number of rows to return (defaults to 100 rows).
-    """
-    limit: Int = 100
-
-    """
-    Set to true to return distinct results.
-    """
-    distinct: Boolean = false
-
-    """
-    Filter condition to apply to the groups of aggregate queries.
-    """
-    having: Portfolio_Having
-  ): [Portfolio!]! @fdc_generated(from: "Portfolio.user", purpose: QUERY_MULTIPLE_ONE_TO_MANY)
-  """
   ✨ List `Transaction` objects in a one-to-many relationship (where `Transaction`.`user` is this object).
   """
   transactions_on_user(
@@ -501,6 +458,10 @@ extend type User {
     having: Transaction_Having
   ): [Transaction!]! @fdc_generated(from: "Transaction.user", purpose: QUERY_MULTIPLE_ONE_TO_MANY)
   """
+  ✨ List `Portfolio` objects in a one-to-one relationship (where `Portfolio`.`user` is this object).
+  """
+  portfolio_on_user: Portfolio @fdc_generated(from: "Portfolio.user", purpose: QUERY_SINGLE_ONE_TO_ONE)
+  """
   Implicit metadata field that cannot be written. It provides extra information about query results.
   """
   _metadata: _Metadata @fdc_generated(from: "User", purpose: METADATA_FIELD)
@@ -527,14 +488,14 @@ extend type User {
     distinct: Boolean = false
   ): Int! @fdc_generated(from: "User.email", purpose: QUERY_COUNT)
   """
-  ✨ Count the number of rows in the `User` table where the `id` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  ✨ Count the number of rows in the `User` table where the `uid` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
   """
-  id_count(
+  uid_count(
     """
     Set to true to count the number of distinct values.
     """
     distinct: Boolean = false
-  ): Int! @fdc_generated(from: "User.id", purpose: QUERY_COUNT)
+  ): Int! @fdc_generated(from: "User.uid", purpose: QUERY_COUNT)
   """
   ✨ Count the number of rows in the `User` table where the `username` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
   """
@@ -590,5 +551,5 @@ extend type User {
   """
   A generated field that is used for caching results in SDKs.
   """
-  _id: ID! @fdc_generated(from: "User.id", purpose: ENTITY_ID)
+  _id: ID! @fdc_generated(from: "User.uid", purpose: ENTITY_ID)
 }

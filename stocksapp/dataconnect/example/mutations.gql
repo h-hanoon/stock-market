@@ -1,0 +1,110 @@
+mutation CreateWalletProfile($username: String!, $email: String!, $startingBalance: Float!)
+  @auth(level: USER)
+  @transaction {
+  user_insert(
+    data: { username: $username, email: $email, virtualBalance: $startingBalance }
+  )
+  portfolio_insert(data: { user: { uid_expr: "auth.uid" } })
+}
+
+mutation BuyStock(
+  $portfolioId: UUID!
+  $symbol: String!
+  $quantity: Float!
+  $price: Float!
+  $cost: Float!
+  $newHoldingQuantity: Float!
+  $newAveragePrice: Float!
+) @auth(level: USER) @transaction {
+  query @redact {
+    user(key: { uid_expr: "auth.uid" }) @check(expr: "this != null", message: "User not found") {
+      virtualBalance @check(expr: "this >= vars.cost", message: "Insufficient balance")
+    }
+  }
+  user_update(
+    key: { uid_expr: "auth.uid" }
+    data: { virtualBalance_update: { dec: $cost } }
+  )
+  holding_upsert(
+    data: {
+      portfolioId: $portfolioId
+      symbol: $symbol
+      quantity: $newHoldingQuantity
+      averagePurchasePrice: $newAveragePrice
+    }
+  )
+  transaction_insert(
+    data: {
+      userUid_expr: "auth.uid"
+      symbol: $symbol
+      type: "BUY"
+      quantity: $quantity
+      priceAtExecution: $price
+      timestamp_expr: "request.time"
+    }
+  )
+}
+
+mutation SellStockPartial(
+  $portfolioId: UUID!
+  $symbol: String!
+  $quantity: Float!
+  $price: Float!
+  $proceeds: Float!
+  $newHoldingQuantity: Float!
+) @auth(level: USER) @transaction {
+  query @redact {
+    holding(key: { portfolioId: $portfolioId, symbol: $symbol })
+      @check(expr: "this != null", message: "You do not own this stock") {
+      quantity @check(expr: "this >= vars.quantity", message: "Not enough shares to sell")
+    }
+  }
+  user_update(
+    key: { uid_expr: "auth.uid" }
+    data: { virtualBalance_update: { inc: $proceeds } }
+  )
+  holding_update(
+    key: { portfolioId: $portfolioId, symbol: $symbol }
+    data: { quantity: $newHoldingQuantity }
+  )
+  transaction_insert(
+    data: {
+      userUid_expr: "auth.uid"
+      symbol: $symbol
+      type: "SELL"
+      quantity: $quantity
+      priceAtExecution: $price
+      timestamp_expr: "request.time"
+    }
+  )
+}
+
+mutation SellStockAll(
+  $portfolioId: UUID!
+  $symbol: String!
+  $quantity: Float!
+  $price: Float!
+  $proceeds: Float!
+) @auth(level: USER) @transaction {
+  query @redact {
+    holding(key: { portfolioId: $portfolioId, symbol: $symbol })
+      @check(expr: "this != null", message: "You do not own this stock") {
+      quantity @check(expr: "this >= vars.quantity", message: "Not enough shares to sell")
+    }
+  }
+  user_update(
+    key: { uid_expr: "auth.uid" }
+    data: { virtualBalance_update: { inc: $proceeds } }
+  )
+  holding_delete(key: { portfolioId: $portfolioId, symbol: $symbol })
+  transaction_insert(
+    data: {
+      userUid_expr: "auth.uid"
+      symbol: $symbol
+      type: "SELL"
+      quantity: $quantity
+      priceAtExecution: $price
+      timestamp_expr: "request.time"
+    }
+  )
+}

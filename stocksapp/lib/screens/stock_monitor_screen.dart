@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../services/stock_service.dart';
+import '../services/wallet_service.dart';
 
 const _bullGreen = Color(0xFF2ECC71);
 const _bearRed = Color(0xFFE74C3C);
@@ -55,6 +56,53 @@ class _StockMonitorScreenState extends State<StockMonitorScreen> {
     }
   }
 
+  Future<void> _buy() async {
+    final wallet = WalletService.instance;
+    WalletOverview overview;
+    try {
+      overview = await wallet.ensureWalletProvisioned();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('$e'), backgroundColor: _bearRed));
+      return;
+    }
+    if (!mounted) return;
+
+    final quantity = await showModalBottomSheet<double>(
+      context: context,
+      backgroundColor: _bgBottom,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => _BuySheet(stock: widget.stock, balance: overview.virtualBalance),
+    );
+    if (quantity == null || quantity <= 0) return;
+
+    try {
+      await wallet.buyStock(
+        symbol: widget.stock.symbol,
+        quantity: quantity,
+        price: widget.stock.price,
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Bought ${quantity.toStringAsFixed(4)} ${widget.stock.symbol}',
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('$e'), backgroundColor: _bearRed));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -65,6 +113,24 @@ class _StockMonitorScreenState extends State<StockMonitorScreen> {
         color: _bullGreen,
         backgroundColor: _bgBottom,
         child: _buildBody(),
+      ),
+      bottomNavigationBar: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+          child: SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: _buy,
+              icon: const Icon(Icons.add_shopping_cart_rounded),
+              label: Text('Buy ${widget.stock.symbol}'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _bullGreen,
+                foregroundColor: Colors.black,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -485,6 +551,125 @@ FlTitlesData _titlesData(List<StockHistoryPoint> history) {
       ),
     ),
   );
+}
+
+class _BuySheet extends StatefulWidget {
+  const _BuySheet({required this.stock, required this.balance});
+
+  final Stock stock;
+  final double balance;
+
+  @override
+  State<_BuySheet> createState() => _BuySheetState();
+}
+
+class _BuySheetState extends State<_BuySheet> {
+  final _controller = TextEditingController();
+
+  double get _quantity => double.tryParse(_controller.text) ?? 0;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final maxAffordable = widget.stock.price == 0
+        ? 0.0
+        : widget.balance / widget.stock.price;
+    final cost = _quantity * widget.stock.price;
+    final isValid = _quantity > 0 && cost <= widget.balance;
+
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+        20,
+        20,
+        20,
+        20 + MediaQuery.of(context).viewInsets.bottom,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Buy ${widget.stock.symbol}',
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Balance \$${widget.balance.toStringAsFixed(2)} · \$${widget.stock.price.toStringAsFixed(2)}/sh',
+            style: TextStyle(color: Colors.white.withValues(alpha: 0.5)),
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _controller,
+            autofocus: true,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            style: const TextStyle(color: Colors.white),
+            decoration: InputDecoration(
+              labelText: 'Quantity',
+              labelStyle: TextStyle(color: Colors.white.withValues(alpha: 0.6)),
+              suffixText: 'sh',
+              suffixStyle: const TextStyle(color: Colors.white70),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.2)),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(color: _bullGreen),
+              ),
+              suffixIcon: TextButton(
+                onPressed: () => setState(
+                  () => _controller.text = maxAffordable.toStringAsFixed(4),
+                ),
+                child: const Text('MAX'),
+              ),
+            ),
+            onChanged: (_) => setState(() {}),
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Text(
+                'Estimated cost',
+                style: TextStyle(color: Colors.white.withValues(alpha: 0.6)),
+              ),
+              const Spacer(),
+              Text(
+                '\$${cost.toStringAsFixed(2)}',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: isValid
+                  ? () => Navigator.of(context).pop(_quantity)
+                  : null,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _bullGreen,
+                foregroundColor: Colors.black,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+              ),
+              child: const Text('Confirm buy'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _ErrorState extends StatelessWidget {

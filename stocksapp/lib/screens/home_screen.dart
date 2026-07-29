@@ -4,13 +4,14 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../services/stock_service.dart';
+import '../services/wallet_service.dart';
 import 'stock_monitor_screen.dart';
+import 'wallet_screen.dart';
 
 const _bullGreen = Color(0xFF2ECC71);
 const _bearRed = Color(0xFFE74C3C);
 const _bgTop = Color(0xFF0B0F14);
 const _bgBottom = Color(0xFF121A24);
-const _initialBalance = 1000000.0;
 const _watchlistSize = 20;
 
 class HomeScreen extends StatefulWidget {
@@ -22,16 +23,19 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final _service = StockService.instance;
+  final _wallet = WalletService.instance;
   final Map<String, double> _previousPrices = {};
 
   List<Stock>? _stocks;
   String? _error;
+  double? _balance;
   Timer? _refreshTimer;
 
   @override
   void initState() {
     super.initState();
     _loadStocks();
+    _loadBalance();
     _refreshTimer = Timer.periodic(
       const Duration(seconds: 5),
       (_) => _refreshQuotes(),
@@ -42,6 +46,23 @@ class _HomeScreenState extends State<HomeScreen> {
   void dispose() {
     _refreshTimer?.cancel();
     super.dispose();
+  }
+
+  Future<void> _loadBalance() async {
+    try {
+      final overview = await _wallet.ensureWalletProvisioned();
+      if (!mounted) return;
+      setState(() => _balance = overview.virtualBalance);
+    } catch (_) {
+      // Wallet balance is non-critical for the watchlist; ignore failures.
+    }
+  }
+
+  Future<void> _openWallet() async {
+    await Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => const WalletScreen()));
+    _loadBalance();
   }
 
   Future<void> _loadStocks() async {
@@ -100,7 +121,10 @@ class _HomeScreenState extends State<HomeScreen> {
         backgroundColor: _bgBottom,
         child: _buildBody(email),
       ),
-      bottomNavigationBar: const _BalanceBar(balance: _initialBalance),
+      bottomNavigationBar: _BalanceBar(
+        balance: _balance,
+        onTap: _openWallet,
+      ),
     );
   }
 
@@ -223,48 +247,60 @@ class _StockTile extends StatelessWidget {
 }
 
 class _BalanceBar extends StatelessWidget {
-  const _BalanceBar({required this.balance});
+  const _BalanceBar({required this.balance, required this.onTap});
 
-  final double balance;
+  final double? balance;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: _bgBottom,
-        border: Border(
-          top: BorderSide(color: Colors.white.withValues(alpha: 0.08)),
-        ),
-      ),
-      child: SafeArea(
-        top: false,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
-          child: Row(
-            children: [
-              const Icon(
-                Icons.account_balance_wallet_rounded,
-                color: _bullGreen,
-                size: 22,
+    return Material(
+      color: _bgBottom,
+      child: InkWell(
+        onTap: onTap,
+        child: Container(
+          decoration: BoxDecoration(
+            border: Border(
+              top: BorderSide(color: Colors.white.withValues(alpha: 0.08)),
+            ),
+          ),
+          child: SafeArea(
+            top: false,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.account_balance_wallet_rounded,
+                    color: _bullGreen,
+                    size: 22,
+                  ),
+                  const SizedBox(width: 10),
+                  Text(
+                    'Available balance',
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.6),
+                      fontSize: 13,
+                    ),
+                  ),
+                  const Spacer(),
+                  Text(
+                    balance == null ? '…' : '\$${_formatBalance(balance!)}',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Icon(
+                    Icons.chevron_right_rounded,
+                    color: Colors.white.withValues(alpha: 0.4),
+                    size: 20,
+                  ),
+                ],
               ),
-              const SizedBox(width: 10),
-              Text(
-                'Available balance',
-                style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.6),
-                  fontSize: 13,
-                ),
-              ),
-              const Spacer(),
-              Text(
-                '\$${_formatBalance(balance)}',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-            ],
+            ),
           ),
         ),
       ),

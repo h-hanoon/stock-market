@@ -1,15 +1,16 @@
-type User @table {
+type User @table(key: "uid") {
+  uid: String! @default(expr: "auth.uid")
   username: String!
-  email: String!
+  email: String! @unique
   virtualBalance: Float!
-  createdAt: Timestamp
+  createdAt: Timestamp! @default(expr: "request.time")
 }
 
 type Portfolio @table {
-  user: User!
+  user: User! @unique
 }
 
-type Holding @table {
+type Holding @table(key: ["portfolio", "symbol"]) {
   portfolio: Portfolio!
   symbol: String!
   quantity: Float!
