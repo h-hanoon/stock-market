@@ -53,11 +53,27 @@ def get_hist_data(symbol):
 
     try:
         filtered = get_historical_data(df, start_date, end_date, start_time)
-        data = filtered[["datetime", "Close"]].to_dict(orient="list")
+        data = filtered[["datetime", "Open", "High", "Low", "Close", "Volume"]].to_dict(
+            orient="list"
+        )
 
         values = [
-            {"date": dt.date(), "close": close}
-            for dt, close in zip(data["datetime"], data["Close"])
+            {
+                "date": dt.date().isoformat(),
+                "open": open_,
+                "high": high,
+                "low": low,
+                "close": close,
+                "volume": volume,
+            }
+            for dt, open_, high, low, close, volume in zip(
+                data["datetime"],
+                data["Open"],
+                data["High"],
+                data["Low"],
+                data["Close"],
+                data["Volume"],
+            )
         ]
         response = jsonify(
             {

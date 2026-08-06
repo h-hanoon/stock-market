@@ -1,4 +1,22 @@
-query GetWalletOverview @auth(level: USER) {
+query GetWalletOverview @auth(level: USER)
+  @refresh(
+    onMutationExecuted: {
+      operation: "BuyStock"
+      condition: "request.auth.uid == mutation.auth.uid"
+    }
+  )
+  @refresh(
+    onMutationExecuted: {
+      operation: "SellStockPartial"
+      condition: "request.auth.uid == mutation.auth.uid"
+    }
+  )
+  @refresh(
+    onMutationExecuted: {
+      operation: "SellStockAll"
+      condition: "request.auth.uid == mutation.auth.uid"
+    }
+  ) {
   user(key: { uid_expr: "auth.uid" }) {
     uid
     username
@@ -15,7 +33,25 @@ query GetWalletOverview @auth(level: USER) {
   }
 }
 
-query GetTransactionHistory($limit: Int = 20) @auth(level: USER) {
+query GetTransactionHistory($limit: Int = 20) @auth(level: USER)
+  @refresh(
+    onMutationExecuted: {
+      operation: "BuyStock"
+      condition: "request.auth.uid == mutation.auth.uid"
+    }
+  )
+  @refresh(
+    onMutationExecuted: {
+      operation: "SellStockPartial"
+      condition: "request.auth.uid == mutation.auth.uid"
+    }
+  )
+  @refresh(
+    onMutationExecuted: {
+      operation: "SellStockAll"
+      condition: "request.auth.uid == mutation.auth.uid"
+    }
+  ) {
   transactions(
     where: { userUid: { eq_expr: "auth.uid" } }
     orderBy: [{ timestamp: DESC }]

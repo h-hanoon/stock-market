@@ -1,7 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../services/stock_service.dart';
 import '../services/wallet_service.dart';
+
+const _priceRefreshInterval = Duration(seconds: 5);
 
 const _bullGreen = Color(0xFF2ECC71);
 const _bearRed = Color(0xFFE74C3C);
@@ -25,6 +29,10 @@ class _WalletScreenState extends State<WalletScreen> {
   final _wallet = WalletService.instance;
   final _stocks = StockService.instance;
 
+  StreamSubscription<WalletOverview?>? _overviewSub;
+  StreamSubscription<List<WalletTransactionRecord>>? _transactionsSub;
+  Timer? _priceTimer;
+
   WalletOverview? _overview;
   Map<String, double> _livePrices = {};
   List<WalletTransactionRecord>? _transactions;
@@ -33,28 +41,70 @@ class _WalletScreenState extends State<WalletScreen> {
   @override
   void initState() {
     super.initState();
-    _load();
+    _init();
   }
 
-  Future<void> _load() async {
+  @override
+  void dispose() {
+    _overviewSub?.cancel();
+    _transactionsSub?.cancel();
+    _priceTimer?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _init() async {
     setState(() => _error = null);
     try {
-      final overview = await _wallet.ensureWalletProvisioned();
-      final quotes = overview.holdings.isEmpty
-          ? <Stock>[]
-          : await _stocks.fetchQuotes(
-              overview.holdings.map((h) => h.symbol).toList(),
-            );
-      final transactions = await _wallet.getTransactionHistory();
-      if (!mounted) return;
-      setState(() {
-        _overview = overview;
-        _livePrices = {for (final q in quotes) q.symbol: q.price};
-        _transactions = transactions;
-      });
+      await _wallet.ensureWalletProvisioned();
     } catch (e) {
       if (!mounted) return;
       setState(() => _error = 'Could not load wallet.\n$e');
+      return;
+    }
+    if (!mounted) return;
+
+    // Live subscriptions: balance/holdings/transactions update as soon as
+    // the server sees a buy or sell, from this device or any other.
+    _overviewSub = _wallet.watchOverview().listen(
+      (overview) {
+        if (!mounted) return;
+        setState(() {
+          _overview = overview;
+          _error = null;
+        });
+        _refreshPrices();
+      },
+      onError: (e) {
+        if (!mounted) return;
+        setState(() => _error = 'Could not load wallet.\n$e');
+      },
+    );
+    _transactionsSub = _wallet.watchTransactionHistory().listen((
+      transactions,
+    ) {
+      if (!mounted) return;
+      setState(() => _transactions = transactions);
+    });
+
+    // Holdings are priced off the mock market feed, which isn't pushed by
+    // Data Connect, so poll it on an interval to keep market value live.
+    _priceTimer = Timer.periodic(
+      _priceRefreshInterval,
+      (_) => _refreshPrices(),
+    );
+  }
+
+  Future<void> _refreshPrices() async {
+    final symbols = _overview?.holdings.map((h) => h.symbol).toList() ?? [];
+    if (symbols.isEmpty) return;
+    try {
+      final quotes = await _stocks.fetchQuotes(symbols);
+      if (!mounted) return;
+      setState(() {
+        _livePrices = {for (final q in quotes) q.symbol: q.price};
+      });
+    } catch (_) {
+      // Keep showing last known prices if a background refresh fails.
     }
   }
 
@@ -84,7 +134,9 @@ class _WalletScreenState extends State<WalletScreen> {
           ),
         ),
       );
-      _load();
+      // The overview/transaction streams will push the update; the sold
+      // holding's price still needs a fresh quote for the summary above.
+      _refreshPrices();
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -99,7 +151,7 @@ class _WalletScreenState extends State<WalletScreen> {
       backgroundColor: _bgTop,
       appBar: AppBar(backgroundColor: _bgTop, title: const Text('Wallet')),
       body: RefreshIndicator(
-        onRefresh: _load,
+        onRefresh: _refreshPrices,
         color: _bullGreen,
         backgroundColor: _bgBottom,
         child: _buildBody(),
@@ -109,7 +161,7 @@ class _WalletScreenState extends State<WalletScreen> {
 
   Widget _buildBody() {
     if (_error != null) {
-      return _ErrorState(message: _error!, onRetry: _load);
+      return _ErrorState(message: _error!, onRetry: _init);
     }
     final overview = _overview;
     final transactions = _transactions;

@@ -101,7 +101,22 @@ class WalletService {
           .getWalletOverview()
           .execute(fetchPolicy: QueryFetchPolicy.serverOnly),
     );
-    final user = result.data.user;
+    return _toOverview(result.data);
+  }
+
+  /// Live wallet overview: pushes an update whenever the balance or
+  /// holdings change on the server (e.g. a buy/sell from any device),
+  /// instead of requiring a manual refresh.
+  Stream<WalletOverview?> watchOverview() {
+    return _connector
+        .getWalletOverview()
+        .ref()
+        .subscribe()
+        .map((result) => _toOverview(result.data));
+  }
+
+  WalletOverview? _toOverview(GetWalletOverviewData data) {
+    final user = data.user;
     if (user == null) return null;
     final portfolio = user.portfolio;
     return WalletOverview(
@@ -130,7 +145,24 @@ class WalletService {
           .limit(limit)
           .execute(fetchPolicy: QueryFetchPolicy.serverOnly),
     );
-    return result.data.transactions
+    return _toTransactions(result.data);
+  }
+
+  /// Live transaction history: pushes an update whenever a buy/sell
+  /// happens, instead of requiring a manual refresh.
+  Stream<List<WalletTransactionRecord>> watchTransactionHistory({
+    int limit = 20,
+  }) {
+    return _connector
+        .getTransactionHistory()
+        .limit(limit)
+        .ref()
+        .subscribe()
+        .map((result) => _toTransactions(result.data));
+  }
+
+  List<WalletTransactionRecord> _toTransactions(GetTransactionHistoryData data) {
+    return data.transactions
         .map(
           (t) => WalletTransactionRecord(
             id: t.id,

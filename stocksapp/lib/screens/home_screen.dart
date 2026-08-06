@@ -30,12 +30,13 @@ class _HomeScreenState extends State<HomeScreen> {
   String? _error;
   double? _balance;
   Timer? _refreshTimer;
+  StreamSubscription<WalletOverview?>? _balanceSub;
 
   @override
   void initState() {
     super.initState();
     _loadStocks();
-    _loadBalance();
+    _watchBalance();
     _refreshTimer = Timer.periodic(
       const Duration(seconds: 5),
       (_) => _refreshQuotes(),
@@ -45,24 +46,30 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void dispose() {
     _refreshTimer?.cancel();
+    _balanceSub?.cancel();
     super.dispose();
   }
 
-  Future<void> _loadBalance() async {
+  Future<void> _watchBalance() async {
     try {
-      final overview = await _wallet.ensureWalletProvisioned();
-      if (!mounted) return;
-      setState(() => _balance = overview.virtualBalance);
+      await _wallet.ensureWalletProvisioned();
     } catch (_) {
       // Wallet balance is non-critical for the watchlist; ignore failures.
+      return;
     }
+    if (!mounted) return;
+    // Live subscription: balance stays current after buys/sells from
+    // anywhere in the app, without needing to revisit the wallet screen.
+    _balanceSub = _wallet.watchOverview().listen((overview) {
+      if (!mounted || overview == null) return;
+      setState(() => _balance = overview.virtualBalance);
+    });
   }
 
-  Future<void> _openWallet() async {
-    await Navigator.of(
+  void _openWallet() {
+    Navigator.of(
       context,
     ).push(MaterialPageRoute(builder: (_) => const WalletScreen()));
-    _loadBalance();
   }
 
   Future<void> _loadStocks() async {
