@@ -77,7 +77,8 @@ class _StockMonitorScreenState extends State<StockMonitorScreen> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (_) => _BuySheet(stock: widget.stock, balance: overview.virtualBalance),
+      builder: (_) =>
+          _BuySheet(stock: widget.stock, balance: overview.virtualBalance),
     );
     if (quantity == null || quantity <= 0) return;
 
@@ -351,45 +352,150 @@ class _VolumeChart extends StatelessWidget {
 
   final List<StockHistoryPoint> history;
 
+  static const _leftAxisWidth = 44.0;
+  static const _dateLabelCount = 4;
+
   @override
   Widget build(BuildContext context) {
-    return BarChart(
-      BarChartData(
-        gridData: const FlGridData(show: false),
-        borderData: FlBorderData(show: false),
-        titlesData: _titlesData(history),
-        barTouchData: BarTouchData(
-          touchTooltipData: BarTouchTooltipData(
-            getTooltipItem: (group, groupIndex, rod, rodIndex) {
-              final point = history[group.x];
-              return BarTooltipItem(
-                '${point.volume.toStringAsFixed(0)}\n${DateFormat.MMMd().format(point.date)}',
-                const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w600,
-                ),
-              );
-            },
-          ),
-        ),
-        barGroups: [
-          for (var i = 0; i < history.length; i++)
-            BarChartGroupData(
-              x: i,
-              barRods: [
-                BarChartRodData(
-                  toY: history[i].volume,
-                  color: history[i].close >= history[i].open
-                      ? _bullGreen
-                      : _bearRed,
-                  width: max(2, 500 / history.length),
-                ),
-              ],
+    final maxVolume = history.map((p) => p.volume).fold<double>(0, max);
+    final step = _niceStep(maxVolume / 4);
+    final maxY = max(step, (maxVolume / step).ceil() * step);
+    final labelIndices = {
+      for (var i = 0; i < _dateLabelCount; i++)
+        (history.length - 1) * i ~/ (_dateLabelCount - 1),
+    };
+    final axisStyle = TextStyle(
+      color: Colors.white.withValues(alpha: 0.5),
+      fontSize: 10,
+    );
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // Each bar takes ~65% of its slot so neighbours never touch.
+        final slot = (constraints.maxWidth - _leftAxisWidth) / history.length;
+        final barWidth = (slot * 0.65).clamp(1.0, 14.0);
+
+        return BarChart(
+          BarChartData(
+            minY: 0,
+            maxY: maxY,
+            alignment: BarChartAlignment.spaceBetween,
+            borderData: FlBorderData(show: false),
+            gridData: FlGridData(
+              drawVerticalLine: false,
+              horizontalInterval: step,
+              getDrawingHorizontalLine: (_) => FlLine(
+                color: Colors.white.withValues(alpha: 0.06),
+                strokeWidth: 1,
+              ),
             ),
-        ],
-      ),
+            titlesData: FlTitlesData(
+              topTitles: const AxisTitles(
+                sideTitles: SideTitles(showTitles: false),
+              ),
+              rightTitles: const AxisTitles(
+                sideTitles: SideTitles(showTitles: false),
+              ),
+              leftTitles: AxisTitles(
+                sideTitles: SideTitles(
+                  showTitles: true,
+                  reservedSize: _leftAxisWidth,
+                  interval: step,
+                  getTitlesWidget: (value, meta) => SideTitleWidget(
+                    meta: meta,
+                    child: Text(_compactNumber(value), style: axisStyle),
+                  ),
+                ),
+              ),
+              bottomTitles: AxisTitles(
+                sideTitles: SideTitles(
+                  showTitles: true,
+                  reservedSize: 24,
+                  // Bar charts call this for every bar, so only label a few.
+                  getTitlesWidget: (value, meta) {
+                    final index = value.toInt();
+                    if (!labelIndices.contains(index)) {
+                      return const SizedBox.shrink();
+                    }
+                    return SideTitleWidget(
+                      meta: meta,
+                      space: 6,
+                      fitInside: SideTitleFitInsideData.fromTitleMeta(meta),
+                      child: Text(
+                        DateFormat.MMMd().format(history[index].date),
+                        style: axisStyle,
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ),
+            barTouchData: BarTouchData(
+              touchTooltipData: BarTouchTooltipData(
+                getTooltipColor: (_) => const Color(0xFF1C2530),
+                getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                  final point = history[group.x];
+                  return BarTooltipItem(
+                    '${_compactNumber(point.volume)} shares\n'
+                    '${DateFormat.MMMd().format(point.date)}',
+                    const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  );
+                },
+              ),
+            ),
+            barGroups: [
+              for (var i = 0; i < history.length; i++)
+                BarChartGroupData(
+                  x: i,
+                  barRods: [
+                    BarChartRodData(
+                      toY: history[i].volume,
+                      color: history[i].close >= history[i].open
+                          ? _bullGreen
+                          : _bearRed,
+                      width: barWidth,
+                      borderRadius: BorderRadius.vertical(
+                        top: Radius.circular(min(barWidth / 2, 3)),
+                      ),
+                    ),
+                  ],
+                ),
+            ],
+          ),
+        );
+      },
     );
   }
+
+  /// Rounds [rough] up to a "nice" axis step: 1, 2, 2.5 or 5 × 10ⁿ.
+  static double _niceStep(double rough) {
+    if (rough <= 0) return 1;
+    final magnitude = pow(10, (log(rough) / ln10).floor()).toDouble();
+    final normalized = rough / magnitude;
+    final nice = normalized <= 1
+        ? 1.0
+        : normalized <= 2
+        ? 2.0
+        : normalized <= 2.5
+        ? 2.5
+        : normalized <= 5
+        ? 5.0
+        : 10.0;
+    return nice * magnitude;
+  }
+}
+
+/// 22500000 → "22.5M", 5000 → "5K", 0 → "0".
+String _compactNumber(double value) {
+  String trim(double v) =>
+      v.toStringAsFixed(v >= 100 ? 0 : 1).replaceAll(RegExp(r'\.0$'), '');
+  if (value >= 1e9) return '${trim(value / 1e9)}B';
+  if (value >= 1e6) return '${trim(value / 1e6)}M';
+  if (value >= 1e3) return '${trim(value / 1e3)}K';
+  return value.toStringAsFixed(0);
 }
 
 class _CandlestickChart extends StatelessWidget {
@@ -619,7 +725,9 @@ class _BuySheetState extends State<_BuySheet> {
               suffixStyle: const TextStyle(color: Colors.white70),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.2)),
+                borderSide: BorderSide(
+                  color: Colors.white.withValues(alpha: 0.2),
+                ),
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
