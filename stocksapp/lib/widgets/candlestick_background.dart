@@ -11,10 +11,7 @@ class CandlestickBackground extends StatelessWidget {
     return IgnorePointer(
       child: Opacity(
         opacity: opacity,
-        child: CustomPaint(
-          painter: _CandlestickPainter(),
-          size: Size.infinite,
-        ),
+        child: CustomPaint(painter: _CandlestickPainter(), size: Size.infinite),
       ),
     );
   }
@@ -56,7 +53,12 @@ class _CandlestickPainter extends CustomPainter {
       );
 
       canvas.drawRect(
-        Rect.fromLTWH(x - candleWidth * 0.28, top, candleWidth * 0.56, max(bottom - top, 2)),
+        Rect.fromLTWH(
+          x - candleWidth * 0.28,
+          top,
+          candleWidth * 0.56,
+          max(bottom - top, 2),
+        ),
         paint..style = PaintingStyle.fill,
       );
     }

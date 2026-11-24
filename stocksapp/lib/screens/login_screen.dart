@@ -1,8 +1,9 @@
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter/material.dart';
 
 import '../widgets/candlestick_background.dart';
 import 'signup_screen.dart';
+import 'verify_email_screen.dart';
 
 const _bullGreen = Color(0xFF2ECC71);
 const _bearRed = Color(0xFFE74C3C);
@@ -38,34 +39,56 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _isSubmitting = true);
 
     try {
-      await FirebaseAuth.instance.signInWithEmailAndPassword(
+      await Supabase.instance.client.auth.signInWithPassword(
         email: _emailController.text.trim(),
         password: _passwordController.text,
       );
-    } on FirebaseAuthException catch (e) {
+    } on AuthException catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(_authErrorMessage(e))),
-      );
+      if (e.code == 'email_not_confirmed') {
+        // Account exists but was never verified: send a fresh code.
+        final email = _emailController.text.trim();
+        try {
+          await Supabase.instance.client.auth.resend(
+            type: OtpType.signup,
+            email: email,
+          );
+        } on AuthException catch (_) {
+          // Rate-limited: the earlier code may still work.
+        }
+        if (!mounted) return;
+        Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => VerifyEmailScreen(email: email)),
+        );
+        return;
+      }
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(_authErrorMessage(e))));
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
     }
   }
 
-  String _authErrorMessage(FirebaseAuthException e) {
+  String _authErrorMessage(AuthException e) {
     switch (e.code) {
-      case 'invalid-email':
+      case 'validation_failed':
+      case 'email_address_invalid':
         return 'That email address looks invalid.';
-      case 'user-disabled':
+      case 'user_banned':
         return 'This account has been disabled.';
-      case 'user-not-found':
-      case 'invalid-credential':
-      case 'wrong-password':
+      case 'invalid_credentials':
+      case 'user_not_found':
         return 'Incorrect email or password.';
-      case 'too-many-requests':
+      case 'email_not_confirmed':
+        return 'Confirm your email first. Check your inbox.';
+      case 'over_request_rate_limit':
+      case 'over_email_send_rate_limit':
         return 'Too many attempts. Try again later.';
       default:
-        return e.message ?? 'Login failed. Please try again.';
+        return e.message.isNotEmpty
+            ? e.message
+            : 'Login failed. Please try again.';
     }
   }
 
@@ -79,16 +102,16 @@ class _LoginScreenState extends State<LoginScreen> {
     }
 
     try {
-      await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
+      await Supabase.instance.client.auth.resetPasswordForEmail(email);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Password reset email sent to $email.')),
       );
-    } on FirebaseAuthException catch (e) {
+    } on AuthException catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(_authErrorMessage(e))),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(_authErrorMessage(e))));
     }
   }
 
@@ -112,9 +135,14 @@ class _LoginScreenState extends State<LoginScreen> {
             child: LayoutBuilder(
               builder: (context, constraints) {
                 return SingleChildScrollView(
-                  padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 28,
+                    vertical: 24,
+                  ),
                   child: ConstrainedBox(
-                    constraints: BoxConstraints(minHeight: constraints.maxHeight - 48),
+                    constraints: BoxConstraints(
+                      minHeight: constraints.maxHeight - 48,
+                    ),
                     child: IntrinsicHeight(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -131,8 +159,9 @@ class _LoginScreenState extends State<LoginScreen> {
                             obscurePassword: _obscurePassword,
                             rememberMe: _rememberMe,
                             isSubmitting: _isSubmitting,
-                            onToggleObscure: () =>
-                                setState(() => _obscurePassword = !_obscurePassword),
+                            onToggleObscure: () => setState(
+                              () => _obscurePassword = !_obscurePassword,
+                            ),
                             onToggleRemember: (v) =>
                                 setState(() => _rememberMe = v ?? false),
                             onSubmit: _handleLogin,
@@ -143,7 +172,9 @@ class _LoginScreenState extends State<LoginScreen> {
                           _SignUpPrompt(
                             onTap: () {
                               Navigator.of(context).push(
-                                MaterialPageRoute(builder: (_) => const SignUpScreen()),
+                                MaterialPageRoute(
+                                  builder: (_) => const SignUpScreen(),
+                                ),
                               );
                             },
                           ),
@@ -160,7 +191,6 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 }
-
 
 class _BullBearSplash extends StatelessWidget {
   const _BullBearSplash();
@@ -193,7 +223,11 @@ class _BullBearSplash extends StatelessWidget {
               shape: BoxShape.circle,
               border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
             ),
-            child: const Icon(Icons.show_chart_rounded, color: Colors.white70, size: 22),
+            child: const Icon(
+              Icons.show_chart_rounded,
+              color: Colors.white70,
+              size: 22,
+            ),
           ),
         ],
       ),
@@ -234,19 +268,38 @@ class _Header extends StatelessWidget {
         RichText(
           textAlign: TextAlign.center,
           text: const TextSpan(
-            style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800, letterSpacing: 0.2),
+            style: TextStyle(
+              fontSize: 28,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.2,
+            ),
             children: [
-              TextSpan(text: 'Bull', style: TextStyle(color: _bullGreen)),
-              TextSpan(text: ' & ', style: TextStyle(color: Colors.white54)),
-              TextSpan(text: 'Bear', style: TextStyle(color: _bearRed)),
-              TextSpan(text: ' Markets', style: TextStyle(color: Colors.white)),
+              TextSpan(
+                text: 'Bull',
+                style: TextStyle(color: _bullGreen),
+              ),
+              TextSpan(
+                text: ' & ',
+                style: TextStyle(color: Colors.white54),
+              ),
+              TextSpan(
+                text: 'Bear',
+                style: TextStyle(color: _bearRed),
+              ),
+              TextSpan(
+                text: ' Markets',
+                style: TextStyle(color: Colors.white),
+              ),
             ],
           ),
         ),
         const SizedBox(height: 8),
         Text(
           'Sign in to track your portfolio',
-          style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 14),
+          style: TextStyle(
+            color: Colors.white.withValues(alpha: 0.6),
+            fontSize: 14,
+          ),
         ),
       ],
     );
@@ -286,7 +339,10 @@ class _LoginForm extends StatelessWidget {
       prefixIcon: Icon(icon, color: Colors.white54, size: 20),
       filled: true,
       fillColor: Colors.white.withValues(alpha: 0.05),
-      border: OutlineInputBorder(borderRadius: borderRadius, borderSide: BorderSide.none),
+      border: OutlineInputBorder(
+        borderRadius: borderRadius,
+        borderSide: BorderSide.none,
+      ),
       enabledBorder: OutlineInputBorder(
         borderRadius: borderRadius,
         borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.08)),
@@ -322,7 +378,9 @@ class _LoginForm extends StatelessWidget {
               keyboardType: TextInputType.emailAddress,
               decoration: _decoration('Email', Icons.mail_outline_rounded),
               validator: (value) {
-                if (value == null || value.trim().isEmpty) return 'Enter your email';
+                if (value == null || value.trim().isEmpty) {
+                  return 'Enter your email';
+                }
                 if (!value.contains('@')) return 'Enter a valid email';
                 return null;
               },
@@ -332,18 +390,23 @@ class _LoginForm extends StatelessWidget {
               controller: passwordController,
               obscureText: obscurePassword,
               style: const TextStyle(color: Colors.white),
-              decoration: _decoration('Password', Icons.lock_outline_rounded).copyWith(
-                suffixIcon: IconButton(
-                  icon: Icon(
-                    obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
-                    color: Colors.white54,
-                    size: 20,
+              decoration: _decoration('Password', Icons.lock_outline_rounded)
+                  .copyWith(
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        obscurePassword
+                            ? Icons.visibility_outlined
+                            : Icons.visibility_off_outlined,
+                        color: Colors.white54,
+                        size: 20,
+                      ),
+                      onPressed: onToggleObscure,
+                    ),
                   ),
-                  onPressed: onToggleObscure,
-                ),
-              ),
               validator: (value) {
-                if (value == null || value.isEmpty) return 'Enter your password';
+                if (value == null || value.isEmpty) {
+                  return 'Enter your password';
+                }
                 if (value.length < 6) return 'At least 6 characters';
                 return null;
               },
@@ -361,14 +424,25 @@ class _LoginForm extends StatelessWidget {
                           ? _bullGreen
                           : Colors.transparent,
                     ),
-                    side: BorderSide(color: Colors.white.withValues(alpha: 0.4)),
+                    side: BorderSide(
+                      color: Colors.white.withValues(alpha: 0.4),
+                    ),
                   ),
                 ),
-                Text('Remember me', style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 13)),
+                Text(
+                  'Remember me',
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.7),
+                    fontSize: 13,
+                  ),
+                ),
                 const Spacer(),
                 TextButton(
                   onPressed: onForgotPassword,
-                  child: const Text('Forgot password?', style: TextStyle(color: _bullGreen, fontSize: 13)),
+                  child: const Text(
+                    'Forgot password?',
+                    style: TextStyle(color: _bullGreen, fontSize: 13),
+                  ),
                 ),
               ],
             ),
@@ -380,16 +454,27 @@ class _LoginForm extends StatelessWidget {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: _bullGreen,
                   foregroundColor: Colors.black,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
                   elevation: 0,
                 ),
                 child: isSubmitting
                     ? const SizedBox(
                         width: 22,
                         height: 22,
-                        child: CircularProgressIndicator(strokeWidth: 2.4, color: Colors.black),
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2.4,
+                          color: Colors.black,
+                        ),
                       )
-                    : const Text('Log In', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+                    : const Text(
+                        'Log In',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
               ),
             ),
           ],
@@ -409,10 +494,16 @@ class _SignUpPrompt extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Text("Don't have an account?", style: TextStyle(color: Colors.white.withValues(alpha: 0.6))),
+        Text(
+          "Don't have an account?",
+          style: TextStyle(color: Colors.white.withValues(alpha: 0.6)),
+        ),
         TextButton(
           onPressed: onTap,
-          child: const Text('Sign Up', style: TextStyle(color: _bullGreen, fontWeight: FontWeight.w700)),
+          child: const Text(
+            'Sign Up',
+            style: TextStyle(color: _bullGreen, fontWeight: FontWeight.w700),
+          ),
         ),
       ],
     );

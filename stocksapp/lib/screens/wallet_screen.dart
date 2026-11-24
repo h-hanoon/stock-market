@@ -79,9 +79,7 @@ class _WalletScreenState extends State<WalletScreen> {
         setState(() => _error = 'Could not load wallet.\n$e');
       },
     );
-    _transactionsSub = _wallet.watchTransactionHistory().listen((
-      transactions,
-    ) {
+    _transactionsSub = _wallet.watchTransactionHistory().listen((transactions) {
       if (!mounted) return;
       setState(() => _transactions = transactions);
     });
@@ -139,9 +137,9 @@ class _WalletScreenState extends State<WalletScreen> {
       _refreshPrices();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('$e'), backgroundColor: _bearRed),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('$e'), backgroundColor: _bearRed));
     }
   }
 
@@ -166,9 +164,7 @@ class _WalletScreenState extends State<WalletScreen> {
     final overview = _overview;
     final transactions = _transactions;
     if (overview == null || transactions == null) {
-      return const Center(
-        child: CircularProgressIndicator(color: _bullGreen),
-      );
+      return const Center(child: CircularProgressIndicator(color: _bullGreen));
     }
 
     final holdingsValue = overview.holdings.fold<double>(
@@ -180,7 +176,10 @@ class _WalletScreenState extends State<WalletScreen> {
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
       children: [
-        _BalanceHeader(cash: overview.virtualBalance, holdingsValue: holdingsValue),
+        _BalanceHeader(
+          cash: overview.virtualBalance,
+          holdingsValue: holdingsValue,
+        ),
         const SizedBox(height: 24),
         const Text('Holdings', style: _sectionTitleStyle),
         const SizedBox(height: 12),
@@ -529,16 +528,17 @@ class _SellSheetState extends State<_SellSheet> {
               suffixStyle: const TextStyle(color: Colors.white70),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.2)),
+                borderSide: BorderSide(
+                  color: Colors.white.withValues(alpha: 0.2),
+                ),
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
                 borderSide: const BorderSide(color: _bearRed),
               ),
               suffixIcon: TextButton(
-                onPressed: () => setState(
-                  () => _controller.text = maxQuantity.toString(),
-                ),
+                onPressed: () =>
+                    setState(() => _controller.text = maxQuantity.toString()),
                 child: const Text('MAX'),
               ),
             ),

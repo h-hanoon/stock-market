@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter/material.dart';
 
 import '../services/stock_service.dart';
@@ -107,7 +107,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final email = FirebaseAuth.instance.currentUser?.email ?? '';
+    final email = Supabase.instance.client.auth.currentUser?.email ?? '';
 
     return Scaffold(
       backgroundColor: _bgTop,
@@ -118,7 +118,7 @@ class _HomeScreenState extends State<HomeScreen> {
           IconButton(
             icon: const Icon(Icons.logout_rounded),
             tooltip: 'Sign out',
-            onPressed: () => FirebaseAuth.instance.signOut(),
+            onPressed: () => Supabase.instance.client.auth.signOut(),
           ),
         ],
       ),
@@ -128,10 +128,7 @@ class _HomeScreenState extends State<HomeScreen> {
         backgroundColor: _bgBottom,
         child: _buildBody(email),
       ),
-      bottomNavigationBar: _BalanceBar(
-        balance: _balance,
-        onTap: _openWallet,
-      ),
+      bottomNavigationBar: _BalanceBar(balance: _balance, onTap: _openWallet),
     );
   }
 

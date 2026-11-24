@@ -1,7 +1,8 @@
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter/material.dart';
 
 import '../widgets/candlestick_background.dart';
+import 'verify_email_screen.dart';
 
 const _bullGreen = Color(0xFF2ECC71);
 const _bearRed = Color(0xFFE74C3C);
@@ -39,34 +40,50 @@ class _SignUpScreenState extends State<SignUpScreen> {
     setState(() => _isSubmitting = true);
 
     try {
-      await FirebaseAuth.instance.createUserWithEmailAndPassword(
-        email: _emailController.text.trim(),
+      final email = _emailController.text.trim();
+      final response = await Supabase.instance.client.auth.signUp(
+        email: email,
         password: _passwordController.text,
       );
       if (!mounted) return;
+      if (response.session == null) {
+        // Email confirmation is on: ask for the code Supabase just emailed.
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (_) => VerifyEmailScreen(email: email)),
+        );
+        return;
+      }
       Navigator.of(context).popUntil((route) => route.isFirst);
-    } on FirebaseAuthException catch (e) {
+    } on AuthException catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(_authErrorMessage(e))),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(_authErrorMessage(e))));
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
     }
   }
 
-  String _authErrorMessage(FirebaseAuthException e) {
+  String _authErrorMessage(AuthException e) {
     switch (e.code) {
-      case 'invalid-email':
+      case 'validation_failed':
+      case 'email_address_invalid':
         return 'That email address looks invalid.';
-      case 'email-already-in-use':
+      case 'user_already_exists':
+      case 'email_exists':
         return 'An account already exists for that email.';
-      case 'weak-password':
+      case 'weak_password':
         return 'Choose a stronger password.';
-      case 'operation-not-allowed':
+      case 'signup_disabled':
+      case 'email_provider_disabled':
         return 'Sign up is currently disabled.';
+      case 'over_request_rate_limit':
+      case 'over_email_send_rate_limit':
+        return 'Too many attempts. Try again later.';
       default:
-        return e.message ?? 'Sign up failed. Please try again.';
+        return e.message.isNotEmpty
+            ? e.message
+            : 'Sign up failed. Please try again.';
     }
   }
 
@@ -90,9 +107,14 @@ class _SignUpScreenState extends State<SignUpScreen> {
             child: LayoutBuilder(
               builder: (context, constraints) {
                 return SingleChildScrollView(
-                  padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 28,
+                    vertical: 24,
+                  ),
                   child: ConstrainedBox(
-                    constraints: BoxConstraints(minHeight: constraints.maxHeight - 48),
+                    constraints: BoxConstraints(
+                      minHeight: constraints.maxHeight - 48,
+                    ),
                     child: IntrinsicHeight(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -105,19 +127,25 @@ class _SignUpScreenState extends State<SignUpScreen> {
                             formKey: _formKey,
                             emailController: _emailController,
                             passwordController: _passwordController,
-                            confirmPasswordController: _confirmPasswordController,
+                            confirmPasswordController:
+                                _confirmPasswordController,
                             obscurePassword: _obscurePassword,
                             obscureConfirmPassword: _obscureConfirmPassword,
                             isSubmitting: _isSubmitting,
-                            onToggleObscure: () =>
-                                setState(() => _obscurePassword = !_obscurePassword),
+                            onToggleObscure: () => setState(
+                              () => _obscurePassword = !_obscurePassword,
+                            ),
                             onToggleObscureConfirm: () => setState(
-                                () => _obscureConfirmPassword = !_obscureConfirmPassword),
+                              () => _obscureConfirmPassword =
+                                  !_obscureConfirmPassword,
+                            ),
                             onSubmit: _handleSignUp,
                           ),
                           const Spacer(),
                           const SizedBox(height: 16),
-                          _LoginPrompt(onTap: () => Navigator.of(context).pop()),
+                          _LoginPrompt(
+                            onTap: () => Navigator.of(context).pop(),
+                          ),
                         ],
                       ),
                     ),
@@ -143,7 +171,11 @@ class _BackButton extends StatelessWidget {
       alignment: Alignment.centerLeft,
       child: IconButton(
         onPressed: onTap,
-        icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white70, size: 20),
+        icon: const Icon(
+          Icons.arrow_back_ios_new_rounded,
+          color: Colors.white70,
+          size: 20,
+        ),
       ),
     );
   }
@@ -159,18 +191,34 @@ class _Header extends StatelessWidget {
         RichText(
           textAlign: TextAlign.center,
           text: const TextSpan(
-            style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800, letterSpacing: 0.2),
+            style: TextStyle(
+              fontSize: 28,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.2,
+            ),
             children: [
-              TextSpan(text: 'Create', style: TextStyle(color: _bullGreen)),
-              TextSpan(text: ' an ', style: TextStyle(color: Colors.white54)),
-              TextSpan(text: 'Account', style: TextStyle(color: Colors.white)),
+              TextSpan(
+                text: 'Create',
+                style: TextStyle(color: _bullGreen),
+              ),
+              TextSpan(
+                text: ' an ',
+                style: TextStyle(color: Colors.white54),
+              ),
+              TextSpan(
+                text: 'Account',
+                style: TextStyle(color: Colors.white),
+              ),
             ],
           ),
         ),
         const SizedBox(height: 8),
         Text(
           'Sign up to start tracking your portfolio',
-          style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 14),
+          style: TextStyle(
+            color: Colors.white.withValues(alpha: 0.6),
+            fontSize: 14,
+          ),
         ),
       ],
     );
@@ -210,7 +258,10 @@ class _SignUpForm extends StatelessWidget {
       prefixIcon: Icon(icon, color: Colors.white54, size: 20),
       filled: true,
       fillColor: Colors.white.withValues(alpha: 0.05),
-      border: OutlineInputBorder(borderRadius: borderRadius, borderSide: BorderSide.none),
+      border: OutlineInputBorder(
+        borderRadius: borderRadius,
+        borderSide: BorderSide.none,
+      ),
       enabledBorder: OutlineInputBorder(
         borderRadius: borderRadius,
         borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.08)),
@@ -246,7 +297,9 @@ class _SignUpForm extends StatelessWidget {
               keyboardType: TextInputType.emailAddress,
               decoration: _decoration('Email', Icons.mail_outline_rounded),
               validator: (value) {
-                if (value == null || value.trim().isEmpty) return 'Enter your email';
+                if (value == null || value.trim().isEmpty) {
+                  return 'Enter your email';
+                }
                 if (!value.contains('@')) return 'Enter a valid email';
                 return null;
               },
@@ -256,18 +309,23 @@ class _SignUpForm extends StatelessWidget {
               controller: passwordController,
               obscureText: obscurePassword,
               style: const TextStyle(color: Colors.white),
-              decoration: _decoration('Password', Icons.lock_outline_rounded).copyWith(
-                suffixIcon: IconButton(
-                  icon: Icon(
-                    obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
-                    color: Colors.white54,
-                    size: 20,
+              decoration: _decoration('Password', Icons.lock_outline_rounded)
+                  .copyWith(
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        obscurePassword
+                            ? Icons.visibility_outlined
+                            : Icons.visibility_off_outlined,
+                        color: Colors.white54,
+                        size: 20,
+                      ),
+                      onPressed: onToggleObscure,
+                    ),
                   ),
-                  onPressed: onToggleObscure,
-                ),
-              ),
               validator: (value) {
-                if (value == null || value.isEmpty) return 'Enter your password';
+                if (value == null || value.isEmpty) {
+                  return 'Enter your password';
+                }
                 if (value.length < 6) return 'At least 6 characters';
                 return null;
               },
@@ -277,21 +335,29 @@ class _SignUpForm extends StatelessWidget {
               controller: confirmPasswordController,
               obscureText: obscureConfirmPassword,
               style: const TextStyle(color: Colors.white),
-              decoration: _decoration('Confirm Password', Icons.lock_outline_rounded).copyWith(
-                suffixIcon: IconButton(
-                  icon: Icon(
-                    obscureConfirmPassword
-                        ? Icons.visibility_outlined
-                        : Icons.visibility_off_outlined,
-                    color: Colors.white54,
-                    size: 20,
+              decoration:
+                  _decoration(
+                    'Confirm Password',
+                    Icons.lock_outline_rounded,
+                  ).copyWith(
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        obscureConfirmPassword
+                            ? Icons.visibility_outlined
+                            : Icons.visibility_off_outlined,
+                        color: Colors.white54,
+                        size: 20,
+                      ),
+                      onPressed: onToggleObscureConfirm,
+                    ),
                   ),
-                  onPressed: onToggleObscureConfirm,
-                ),
-              ),
               validator: (value) {
-                if (value == null || value.isEmpty) return 'Confirm your password';
-                if (value != passwordController.text) return 'Passwords do not match';
+                if (value == null || value.isEmpty) {
+                  return 'Confirm your password';
+                }
+                if (value != passwordController.text) {
+                  return 'Passwords do not match';
+                }
                 return null;
               },
             ),
@@ -303,16 +369,27 @@ class _SignUpForm extends StatelessWidget {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: _bullGreen,
                   foregroundColor: Colors.black,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
                   elevation: 0,
                 ),
                 child: isSubmitting
                     ? const SizedBox(
                         width: 22,
                         height: 22,
-                        child: CircularProgressIndicator(strokeWidth: 2.4, color: Colors.black),
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2.4,
+                          color: Colors.black,
+                        ),
                       )
-                    : const Text('Sign Up', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+                    : const Text(
+                        'Sign Up',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
               ),
             ),
           ],
@@ -332,10 +409,16 @@ class _LoginPrompt extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Text('Already have an account?', style: TextStyle(color: Colors.white.withValues(alpha: 0.6))),
+        Text(
+          'Already have an account?',
+          style: TextStyle(color: Colors.white.withValues(alpha: 0.6)),
+        ),
         TextButton(
           onPressed: onTap,
-          child: const Text('Log In', style: TextStyle(color: _bullGreen, fontWeight: FontWeight.w700)),
+          child: const Text(
+            'Log In',
+            style: TextStyle(color: _bullGreen, fontWeight: FontWeight.w700),
+          ),
         ),
       ],
     );

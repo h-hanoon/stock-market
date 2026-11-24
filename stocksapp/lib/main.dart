@@ -1,14 +1,17 @@
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
-import 'firebase_options.dart';
 import 'screens/home_screen.dart';
 import 'screens/login_screen.dart';
+import 'supabase_config.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  SupabaseConfig.assertConfigured();
+  await Supabase.initialize(
+    url: SupabaseConfig.url,
+    publishableKey: SupabaseConfig.publishableKey,
+  );
   runApp(const MainApp());
 }
 
@@ -22,20 +25,17 @@ class MainApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: ThemeData.dark(useMaterial3: true).copyWith(
         scaffoldBackgroundColor: const Color(0xFF0B0F14),
-        colorScheme: ThemeData.dark(useMaterial3: true).colorScheme.copyWith(
-              primary: const Color(0xFF2ECC71),
-            ),
+        colorScheme: ThemeData.dark(
+          useMaterial3: true,
+        ).colorScheme.copyWith(primary: const Color(0xFF2ECC71)),
       ),
-      home: StreamBuilder<User?>(
-        stream: FirebaseAuth.instance.authStateChanges(),
+      home: StreamBuilder<AuthState>(
+        stream: Supabase.instance.client.auth.onAuthStateChange,
         builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Scaffold(
-              backgroundColor: Color(0xFF0B0F14),
-              body: Center(child: CircularProgressIndicator()),
-            );
-          }
-          return snapshot.hasData ? const HomeScreen() : const LoginScreen();
+          final session =
+              snapshot.data?.session ??
+              Supabase.instance.client.auth.currentSession;
+          return session != null ? const HomeScreen() : const LoginScreen();
         },
       ),
     );
